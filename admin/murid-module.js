@@ -137,7 +137,21 @@ async function savePeriode() {
   if (!id) {
     var tahun = (data.tanggal_mulai ? new Date(data.tanggal_mulai).getFullYear() : new Date().getFullYear());
     var prefix = 'P' + tahun + '-';
-    var seq = allPeriode.filter(function(p){ return (p.id_periode||'').indexOf(prefix) === 0; }).length + 1;
+    // Ambil seq tertinggi yg sudah ada utk prefix ini lalu +1, DAN pastikan tak
+    // menabrak id mana pun (termasuk nomor bolong akibat hapus/manual). Pola sama
+    // dgn suggestUsrIdUser — cegah tabrakan PK saat ada gap / dua admin bareng.
+    var taken = {}, maxSeq = 0;
+    (allPeriode || []).forEach(function(p){
+      var pid = p && p.id_periode ? String(p.id_periode) : '';
+      if (!pid) return;
+      taken[pid] = 1;
+      if (pid.indexOf(prefix) === 0) {
+        var n = parseInt(pid.slice(prefix.length), 10);
+        if (!isNaN(n) && n > maxSeq) maxSeq = n;
+      }
+    });
+    var seq = maxSeq + 1;
+    while (taken[prefix + seq]) seq++;
     data.id_periode = prefix + seq;
   }
   showLoad('Bismillah, menyimpan...');
@@ -750,7 +764,10 @@ function _splitCSVRow(row, delimiter) {
   var result = [], cur = '', inQ = false;
   for (var i = 0; i < row.length; i++) {
     var c = row[i];
-    if (c === '"') { inQ = !inQ; }
+    if (c === '"') {
+      if (inQ && row[i + 1] === '"') { cur += '"'; i++; }  // "" di dalam kutip → satu " literal
+      else { inQ = !inQ; }
+    }
     else if (c === delimiter && !inQ) { result.push(cur.trim()); cur = ''; }
     else { cur += c; }
   }

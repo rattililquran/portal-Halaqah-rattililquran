@@ -1268,7 +1268,7 @@ async function submitFormEditSoalAdmin(e, id_soal) {
     }).filter(Boolean);
   } else if (tipe === 'isian_singkat') {
     var rawKunci = document.getElementById('csIsianKunci').value;
-    payload.kunci_isian = rawKunci.split(',').map(function(k){ return k.trim(); }).filter(Boolean);
+    payload.kunci_isian = rawKunci.split(/[|,]/).map(function(k){ return k.trim(); }).filter(Boolean);
   }
 
   try {
@@ -1367,8 +1367,15 @@ function parseCSVSoal(file) {
       return;
     }
     
+    // Pemecah CSV yg sadar tanda kutip (dipakai bersama import murid) — jadi ';'
+    // di dalam field ber-kutip tak lagi menggeser kolom. Fallback ke split biasa
+    // hanya bila helper bersama belum termuat.
+    const splitCSV = (typeof window !== 'undefined' && window._splitCSVRow)
+      ? function(line){ return window._splitCSVRow(line, ';'); }
+      : function(line){ return line.split(';'); };
+
     // Parse header to check correctness
-    const header = lines[0].toLowerCase().split(';');
+    const header = splitCSV(lines[0].toLowerCase());
     const expected = ['tipe_soal','teks_soal','teks_arab','audio_url','pilihan','pasangan','kunci_isian','levels','rekomendasi_pertemuan_ke'];
     const isHeaderValid = expected.every(col => header.includes(col));
     
@@ -1387,7 +1394,7 @@ function parseCSVSoal(file) {
     tbody.innerHTML = '';
 
     for (let i = 1; i < lines.length; i++) {
-      const row = lines[i].split(';');
+      const row = splitCSV(lines[i]);
       if (row.length < expected.length) continue;
 
       const getValue = (colName) => (row[colIndex[colName]] || '').trim();
@@ -1491,12 +1498,15 @@ function parseCSVSoal(file) {
         if (!kunciRaw) {
           item.error = 'Kunci isian wajib diisi untuk isian singkat';
         } else {
-          const kuncis = kunciRaw.split('|').map(k => k.trim()).filter(Boolean);
+          const kuncis = kunciRaw.split(/[|,]/).map(k => k.trim()).filter(Boolean);
           if (kuncis.length === 0) {
             item.error = 'Kunci isian kosong';
           } else {
+            // Backend createSoal memetakan tiap elemen lewat String(k).trim(),
+            // jadi kirim string mentah (bukan {teks_kunci}) spy tak jadi
+            // "[object Object]". Samakan dgn jalur editor manual.
             kuncis.forEach(k => {
-              item.kunci_isian.push({ teks_kunci: k });
+              item.kunci_isian.push(k);
             });
           }
         }
