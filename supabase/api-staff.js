@@ -5160,7 +5160,7 @@ var AdminAPI = {
           id_murid: a.id_murid, nama_murid: a.nama_murid, id_halaqah: a.id_halaqah,
           nama_halaqah: a.halaqah && a.halaqah.nama_halaqah || '', level: a.level,
           no_hp: hpMap[a.id_murid] || '', lunas_bulan: lunasBulan,
-          tunggakan: 0, bulan_belum: [], _winLen: 0, is_beasiswa: isBeasiswa,
+          tunggakan: 0, _winLen: 0, is_beasiswa: isBeasiswa,
           level_selesai: 0, progress_level: 0,
         };
       }
@@ -5178,9 +5178,9 @@ var AdminAPI = {
         id_murid: a.id_murid, nama_murid: a.nama_murid,
         id_halaqah: a.id_halaqah, nama_halaqah: a.halaqah && a.halaqah.nama_halaqah || '',
         level: a.level, no_hp: hpMap[a.id_murid] || '',
-        // bulan_belum: model level count-based tak bisa memetakan bulan kalender
-        // yg presisi → selalu [] (FE tampil "N bulan belum lunas" dr `tunggakan`).
-        lunas_bulan: lunasBulan, tunggakan, bulan_belum: [],
+        // bulan_belum dipensiunkan (2ae457f): model count-based tak petakan bulan
+        // kalender → FE tampil "N bulan belum lunas" dari `tunggakan`. Field dihapus.
+        lunas_bulan: lunasBulan, tunggakan,
         _winLen: winLen, is_beasiswa: isBeasiswa,
         level_selesai: levelSelesai, progress_level: progressLevel,
       };
@@ -5308,7 +5308,7 @@ var AdminAPI = {
 
     var muridList = muridListRaw.map(function(m){
       return { id_murid:m.id_murid, nama_murid:m.nama_murid, id_halaqah:m.id_halaqah, nama_halaqah:m.nama_halaqah,
-        level:m.level, no_hp:m.no_hp, lunas_bulan:m.lunas_bulan, tunggakan:m.tunggakan, bulan_belum:m.bulan_belum, is_beasiswa:m.is_beasiswa,
+        level:m.level, no_hp:m.no_hp, lunas_bulan:m.lunas_bulan, tunggakan:m.tunggakan, is_beasiswa:m.is_beasiswa,
         level_selesai:m.level_selesai, progress_level:m.progress_level };
     });
     return { status:'ok', data:{ murid_list: muridList, infaq_list: infaqList, spp_list: sppList,

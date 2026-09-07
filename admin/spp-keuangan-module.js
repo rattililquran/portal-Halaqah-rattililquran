@@ -1279,9 +1279,8 @@ function filterSPPTable(keepLimit) {
       bulanBelum = '<span class="badge b-green" style="display:inline-flex;align-items:center;gap:3px">'+svgIcon('ok',11)+' Lunas '+esc(bulanFilter)+'</span>';
     } else if (m.tunggakan === 0) {
       bulanBelum = '<span class="badge b-green" style="display:inline-flex;align-items:center;gap:3px">'+svgIcon('ok',11)+' Lunas</span>';
-    } else if (m.bulan_belum.length) {
-      bulanBelum = m.bulan_belum.map(function(b){ return '<span class="tag-spp-belum">'+b+'</span>'; }).join('');
     } else {
+      // bulan_belum dipensiunkan (2ae457f) — tampilan tunggakan SELALU count-based.
       bulanBelum = '<span class="tag-spp-belum">'+m.tunggakan+' bulan belum lunas</span>';
     }
     var waLink = (m.no_hp && m.tunggakan > 0)
@@ -1652,7 +1651,7 @@ function eksporSPP() {
       var nama = _csvSafe(m.nama_murid || '');
       var hal = _csvSafe(m.nama_halaqah || m.id_halaqah || '—');
       var lvl = _csvSafe(m.level || '');
-      var bln = _csvSafe(m.tunggakan === 0 ? 'Lunas' : (m.bulan_belum.length ? m.bulan_belum.join(', ') : m.tunggakan + ' bulan belum lunas'));
+      var bln = _csvSafe(m.tunggakan === 0 ? 'Lunas' : (m.tunggakan + ' bulan belum lunas'));
       var hp  = _csvSafe(m.no_hp || '');
       csv += '"' + _csvSafe(m.id_murid) + '";"' + nama + '";"' + hal + '";"' + lvl + '";' + m.tunggakan + ';"' + bln + '";"' + hp + '"\r\n';
     });
@@ -1697,7 +1696,7 @@ function salinTagihanMassal() {
   menunggakList.forEach(function(m, idx) {
     var nominal = m.tunggakan * SPP_NOMINAL_BULANAN;
     txt += (idx + 1) + '. *' + m.nama_murid + '* (' + m.id_murid + ')\n'
-      + '   • Tunggakan: *' + m.tunggakan + ' bulan*' + (m.bulan_belum.length ? ' (' + m.bulan_belum.join(', ') + ')' : '') + '\n'
+      + '   • Tunggakan: *' + m.tunggakan + ' bulan*\n'
       + '   • Total Tagihan: *Rp ' + nominal.toLocaleString('id-ID') + '*\n\n';
   });
   
