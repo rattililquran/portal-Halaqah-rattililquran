@@ -21,7 +21,7 @@
   var CSV_SAMPLE = [
     'pilihan_ganda;Huruf manakah yang keluar dari Wasatul Halq?;Wakqul Halq;;ع*|غ|ء|ق;;;Level 1,Level 2;23;15;10',
     'benar_salah;Huruf Ghain dan Kha keluar dari ujung tenggorokan (Adnal Halq).;;;Benar*|Salah;;;Level 1;23;30;10',
-    'isian_singkat;Berapakah total huruf hijaiyah makhraj Al-Halq?;;;;;6|enam;;Level 1;23;20;15',
+    'isian_singkat;Berapakah total huruf hijaiyah makhraj Al-Halq?;;;;;6|enam;Level 1;23;20;15',
     'matching;Jodohkan bagian Al-Halq dengan hurufnya;;;;Aqshal:Hamzah|Wasatul:Ain|Adnal:Ghain;Level 1,Tahsin Al-Fatihah;;;10'
   ];
   var TIPE_VALID = ['pilihan_ganda', 'benar_salah', 'matching', 'audio', 'teks_arab', 'isian_singkat'];
