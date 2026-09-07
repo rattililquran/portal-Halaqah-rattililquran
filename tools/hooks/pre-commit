@@ -1,18 +1,36 @@
 #!/bin/sh
-# pre-commit — auto content-hash cache-busting (tools/version-assets.js).
+# pre-commit — (1) GATE TEST logika inti (blokir bila gagal) + (2) cache-busting.
 #
-# Bila commit menyentuh file .js/.css atau index.html, jalankan version-assets
-# lalu re-stage index.html yang berubah. DEFENSIF: apa pun yang gagal (node tak
-# ada, dll) -> exit 0, TAK PERNAH memblokir commit.
+# 1) Bila ada berkas .js ter-stage -> jalankan `node tests/run.js`. Test GAGAL
+#    -> commit DIBATALKAN (darurat: `git commit --no-verify`). Output test hanya
+#    ditampilkan saat gagal; sukses cukup satu baris.
+# 2) Bila .js/.css/index.html ter-stage -> version-assets (cache-bust) & re-stage
+#    index.html. DEFENSIF: kegagalan langkah ini TAK PERNAH memblokir commit.
+#
+# Catatan: gate test berjalan atas WORKING TREE (bukan isi staged) — batasan
+# standar pre-commit; alur repo ini stage+commit berkas utuh, jadi selaras.
 #
 # Pasang:  cp tools/hooks/pre-commit .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 # Copot :  rm .git/hooks/pre-commit
 
-staged=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
-echo "$staged" | grep -qE '\.(js|css)$|index\.html$' || exit 0
-
-command -v node >/dev/null 2>&1 || exit 0
 repo_root=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+command -v node >/dev/null 2>&1 || exit 0
+staged=$(git diff --cached --name-only --diff-filter=ACM 2>/dev/null)
+
+# ── 1) Gate test (BLOKIR bila gagal) ───────────────────────────────
+if echo "$staged" | grep -qE '\.js$' && [ -f "$repo_root/tests/run.js" ]; then
+  if out=$(node "$repo_root/tests/run.js" 2>&1); then
+    echo "✓ pre-commit: test inti lolos"
+  else
+    echo "$out"
+    echo ""
+    echo "✗ Test GAGAL — commit dibatalkan. Perbaiki dulu, atau (darurat): git commit --no-verify"
+    exit 1
+  fi
+fi
+
+# ── 2) Cache-busting (DEFENSIF — tak pernah memblokir) ──────────────
+echo "$staged" | grep -qE '\.(js|css)$|index\.html$' || exit 0
 
 node "$repo_root/tools/version-assets.js" >/dev/null 2>&1 || exit 0
 
