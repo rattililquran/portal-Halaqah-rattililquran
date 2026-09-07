@@ -5131,12 +5131,16 @@ var AdminAPI = {
     // murid_list) → lewati fetch yg mahal.
     var _skipTunggakan = tunggakanDisabled || !!p.bulan;
     var lunasSetMap = {};   // id_murid → { "tahun-bulan": namaBulan }  distinct, lintas tahun
+    var lastPayMap = {};    // id_murid → tanggal_bayar TERAKHIR (recency SPP Pribadi lunas) — Fase 4
     if (muridIds.length && !_skipTunggakan) {
-      var allSppRows = await _selectAllPaged('spp_pembayaran', 'id_spp, id_murid, bulan, tahun, jenis, status',
+      var allSppRows = await _selectAllPaged('spp_pembayaran', 'id_spp, id_murid, bulan, tahun, jenis, status, tanggal_bayar',
         function(q){ return q.in('id_murid', muridIds).eq('status','lunas').order('id_spp'); },
         'getSPPRekap:allSppRows');
       (allSppRows||[]).forEach(function(r){
         if (r.jenis && r.jenis !== 'SPP Pribadi') return;
+        // Recency: tanggal_bayar TERAKHIR (string ISO YYYY-MM-DD aman dibandingkan leksikografis).
+        // Dihitung sebelum skip bulan '-' agar setiap setoran SPP Pribadi lunas tetap terhitung.
+        if (r.tanggal_bayar && (!lastPayMap[r.id_murid] || r.tanggal_bayar > lastPayMap[r.id_murid])) lastPayMap[r.id_murid] = r.tanggal_bayar;
         if (BULAN.indexOf(r.bulan) < 0) return; // buang bulan '-' / tak dikenal
         (lunasSetMap[r.id_murid] = lunasSetMap[r.id_murid] || {})[r.tahun + '-' + r.bulan] = r.bulan;
       });
@@ -5160,7 +5164,7 @@ var AdminAPI = {
           id_murid: a.id_murid, nama_murid: a.nama_murid, id_halaqah: a.id_halaqah,
           nama_halaqah: a.halaqah && a.halaqah.nama_halaqah || '', level: a.level,
           no_hp: hpMap[a.id_murid] || '', lunas_bulan: lunasBulan,
-          tunggakan: 0, _winLen: 0, is_beasiswa: isBeasiswa,
+          tunggakan: 0, _winLen: 0, is_beasiswa: isBeasiswa, terakhir_bayar: lastPayMap[a.id_murid] || null,
           level_selesai: 0, progress_level: 0,
         };
       }
@@ -5180,7 +5184,7 @@ var AdminAPI = {
         level: a.level, no_hp: hpMap[a.id_murid] || '',
         // bulan_belum dipensiunkan (2ae457f): model count-based tak petakan bulan
         // kalender → FE tampil "N bulan belum lunas" dari `tunggakan`. Field dihapus.
-        lunas_bulan: lunasBulan, tunggakan,
+        lunas_bulan: lunasBulan, tunggakan, terakhir_bayar: lastPayMap[a.id_murid] || null,
         _winLen: winLen, is_beasiswa: isBeasiswa,
         level_selesai: levelSelesai, progress_level: progressLevel,
       };
@@ -5308,7 +5312,7 @@ var AdminAPI = {
 
     var muridList = muridListRaw.map(function(m){
       return { id_murid:m.id_murid, nama_murid:m.nama_murid, id_halaqah:m.id_halaqah, nama_halaqah:m.nama_halaqah,
-        level:m.level, no_hp:m.no_hp, lunas_bulan:m.lunas_bulan, tunggakan:m.tunggakan, is_beasiswa:m.is_beasiswa,
+        level:m.level, no_hp:m.no_hp, lunas_bulan:m.lunas_bulan, tunggakan:m.tunggakan, terakhir_bayar:m.terakhir_bayar, is_beasiswa:m.is_beasiswa,
         level_selesai:m.level_selesai, progress_level:m.progress_level };
     });
     return { status:'ok', data:{ murid_list: muridList, infaq_list: infaqList, spp_list: sppList,

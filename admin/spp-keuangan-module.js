@@ -1170,6 +1170,22 @@ function sppKirimWAReminder(id_murid) {
   window.open('https://wa.me/' + num + '?text=' + encodeURIComponent(msg), '_blank');
 }
 
+// Recency setoran (Fase 4): tanggal_bayar TERAKHIR → teks kecil di sel rekap.
+// Menutup titik-buta model count-based: murid yang berhenti tepat di batas level
+// tampil "Lunas" (tunggakan 0) padahal sudah lama tak setor. Ambang "lama" = 60 hari.
+function _sppRecency(tgl) {
+  if (!tgl) return '<div style="font-size:10px;color:var(--amber-txt);margin-top:2px">belum pernah setor</div>';
+  var d = new Date(tgl);
+  if (isNaN(d.getTime())) return '';
+  var hari = Math.floor((Date.now() - d.getTime()) / 86400000);
+  var tglStr = d.toLocaleDateString('id-ID', { day:'2-digit', month:'short', year:'numeric' });
+  if (hari >= 60) {
+    var bln = Math.floor(hari / 30);
+    return '<div style="font-size:10px;color:var(--amber-txt);margin-top:2px">⚠ belum setor ~' + bln + ' bln (terakhir ' + esc(tglStr) + ')</div>';
+  }
+  return '<div style="font-size:10px;color:var(--text-3);margin-top:2px">terakhir setor ' + esc(tglStr) + '</div>';
+}
+
 function filterSPPTable(keepLimit) {
   var jenis = document.getElementById('sppFilterJenis')?.value || 'spp';
   var statusFilter = document.getElementById('sppFilterStatus')?.value || '';
@@ -1192,7 +1208,7 @@ function filterSPPTable(keepLimit) {
         ? 'Daftar transaksi SPP Pribadi per pembayaran' + (_sppTunggakanDisabled ? ' (semua tahun)' : '')
       : modeLunasBulan
         ? 'Murid yang sudah membayar SPP Pribadi ' + bulanFilter
-        : 'Rekap tunggakan SPP Pribadi per bulan';
+        : 'Rekap tunggakan SPP Pribadi — sisa kewajiban level berjalan (5 − sudah bayar), termasuk bulan belum jatuh tempo';
 
   // (sppTxMode dihitung di atas)
   // Bar tandai periode massal + info baris (mode transaksi / infaq / ihsan)
@@ -1291,7 +1307,7 @@ function filterSPPTable(keepLimit) {
       + '<div style="font-size:11px;color:var(--text-3)">'+esc(m.id_murid)+' · '+esc(m.level||'')+'</div></td>'
       + '<td><div style="font-weight:600;color:var(--text-2)">'+esc(m.nama_halaqah||m.id_halaqah||'—')+'</div></td>'
       + '<td class="align-center"><span class="'+badgeClass+'" style="min-width:28px;justify-content:center">'+m.tunggakan+'</span></td>'
-      + '<td>'+bulanBelum+'</td>'
+      + '<td>'+bulanBelum+_sppRecency(m.terakhir_bayar)+'</td>'
       + '<td class="align-center">'+waLink+'</td>'
       + '</tr>';
   }).join('');
@@ -1646,14 +1662,14 @@ function eksporSPP() {
       return;
     }
     var statusVal = document.getElementById('sppFilterStatus').value || 'Semua-Status';
-    csv = 'ID Murid;Nama Murid;Halaqah;Level;Tunggakan Bulan;Bulan Belum Lunas;No HP\r\n';
+    csv = 'ID Murid;Nama Murid;Halaqah;Level;Tunggakan Bulan;Bulan Belum Lunas;Terakhir Bayar;No HP\r\n';
     list.forEach(function(m) {
       var nama = _csvSafe(m.nama_murid || '');
       var hal = _csvSafe(m.nama_halaqah || m.id_halaqah || '—');
       var lvl = _csvSafe(m.level || '');
       var bln = _csvSafe(m.tunggakan === 0 ? 'Lunas' : (m.tunggakan + ' bulan belum lunas'));
       var hp  = _csvSafe(m.no_hp || '');
-      csv += '"' + _csvSafe(m.id_murid) + '";"' + nama + '";"' + hal + '";"' + lvl + '";' + m.tunggakan + ';"' + bln + '";"' + hp + '"\r\n';
+      csv += '"' + _csvSafe(m.id_murid) + '";"' + nama + '";"' + hal + '";"' + lvl + '";' + m.tunggakan + ';"' + bln + '";"' + _csvSafe(m.terakhir_bayar || '') + '";"' + hp + '"\r\n';
     });
     namaFile = 'rekap_spp_' + tahun + '_' + halaqahVal + '_' + bulanVal + '_' + statusVal + '.csv';
   }
