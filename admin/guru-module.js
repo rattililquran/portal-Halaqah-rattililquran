@@ -1212,64 +1212,10 @@ function adminUpdateTeksArabPreview(val) {
 
 async function submitFormEditSoalAdmin(e, id_soal) {
   e.preventDefault();
-  var tipe = document.getElementById('csTipe').value;
-  var teksSoal = document.getElementById('csTeksSoal').value.trim();
-
-  var selectedLevels = Array.from(document.querySelectorAll('.csLevelCheck:checked')).map(function(cb) {
-    return cb.value;
-  });
-
-  if (selectedLevels.length === 0) {
-    alert('Pilih minimal satu level halaqah!');
-    return;
-  }
-
-  var rekomendasiPertemuan = document.getElementById('csRekomendasiPertemuan').value;
-  var durasiDefault = document.getElementById('csDurasiDefault').value;
-  var poinDefault = document.getElementById('csPoinDefault').value;
-
-  var payload = {
-    tipe_soal: tipe,
-    teks_soal: teksSoal,
-    teks_arab: document.getElementById('csTeksArab') ? document.getElementById('csTeksArab').value.trim() : null,
-    audio_url: document.getElementById('csAudioUrl') ? document.getElementById('csAudioUrl').value.trim() : null,
-    levels: selectedLevels,
-    rekomendasi_pertemuan_ke: rekomendasiPertemuan || null,
-    durasi_detik_default: durasiDefault !== '' ? parseInt(durasiDefault) : null,
-    bobot_poin_default: poinDefault !== '' ? parseInt(poinDefault) : 10,
-    boleh_maze: document.getElementById('csBolehMaze') ? document.getElementById('csBolehMaze').checked : false,
-    boleh_run: document.getElementById('csBolehRun') ? document.getElementById('csBolehRun').checked : false,
-    pilihan: [],
-    pasangan: [],
-    kunci_isian: []
-  };
-
-  if (tipe === 'pilihan_ganda' || tipe === 'audio' || tipe === 'teks_arab') {
-    var pilInputs = Array.from(document.querySelectorAll('.csPil'));
-    var selectedBenarIdx = parseInt(document.querySelector('input[name="csBenar"]:checked').value);
-    payload.pilihan = pilInputs.map(function(inp, idx) {
-      if (!inp.value.trim()) return null;
-      return { teks_pilihan: inp.value.trim(), is_benar: idx === selectedBenarIdx };
-    }).filter(Boolean);
-  } else if (tipe === 'benar_salah') {
-    var isBenarSelected = document.querySelector('input[name="csBsBenar"]:checked').value === 'benar';
-    payload.pilihan = [
-      { teks_pilihan: 'Benar', is_benar: isBenarSelected },
-      { teks_pilihan: 'Salah', is_benar: !isBenarSelected }
-    ];
-  } else if (tipe === 'matching') {
-    var kiriInputs = Array.from(document.querySelectorAll('.csMatchKiri'));
-    var kananInputs = Array.from(document.querySelectorAll('.csMatchKanan'));
-    payload.pasangan = kiriInputs.map(function(kInp, idx) {
-      var kiriText = kInp.value.trim();
-      var kananText = kananInputs[idx] ? kananInputs[idx].value.trim() : '';
-      if (!kiriText || !kananText) return null;
-      return { teks_kiri: kiriText, teks_kanan: kananText };
-    }).filter(Boolean);
-  } else if (tipe === 'isian_singkat') {
-    var rawKunci = document.getElementById('csIsianKunci').value;
-    payload.kunci_isian = rawKunci.split(/[|,]/).map(function(k){ return k.trim(); }).filter(Boolean);
-  }
+  // Payload dikumpulkan modul bersama (SoalCore) — sumber tunggal bentuk data
+  // (kunci_isian string, delimiter, is_benar). Return null bila level kosong.
+  var payload = window.SoalCore.collectFormPayload();
+  if (!payload) return;
 
   try {
     showLoad('Menyimpan perubahan soal...');
@@ -1317,23 +1263,7 @@ function bukaModalImportSoal() {
 }
 
 function downloadTemplateSoal() {
-  const header = 'tipe_soal;teks_soal;teks_arab;audio_url;pilihan;pasangan;kunci_isian;levels;rekomendasi_pertemuan_ke;durasi_detik_default;bobot_poin_default';
-  const sample = [
-    'pilihan_ganda;Huruf manakah yang keluar dari Wasatul Halq?;Wakqul Halq;;ع*|غ|ء|ق;;;Level 1,Level 2;23;15;10',
-    'benar_salah;Huruf Ghain dan Kha keluar dari ujung tenggorokan (Adnal Halq).;;;Benar*|Salah;;;Level 1;23;30;10',
-    'isian_singkat;Berapakah total huruf hijaiyah makhraj Al-Halq?;;;;;6|enam;;Level 1;23;20;15',
-    'matching;Jodohkan bagian Al-Halq dengan hurufnya;;;;Aqshal:Hamzah|Wasatul:Ain|Adnal:Ghain;Level 1,Tahsin Al-Fatihah;;;10'
-  ].join('\n');
-  
-  const blob = new Blob([header + '\n' + sample], { type: 'text/csv;charset=utf-8;' });
-  const url  = URL.createObjectURL(blob);
-  const a    = document.createElement('a');
-  a.href = url;
-  a.download = 'template_import_soal_rattil.csv';
-  document.body.appendChild(a);
-  a.click();
-  document.body.removeChild(a);
-  URL.revokeObjectURL(url);
+  window.SoalCore.downloadTemplate('template_import_soal_rattil.csv');
 }
 
 function handleFileSelectSoal(e) {
@@ -1359,209 +1289,36 @@ window.addEventListener('DOMContentLoaded', () => {
 function parseCSVSoal(file) {
   const reader = new FileReader();
   reader.onload = function(e) {
-    const text = e.target.result;
-    const lines = text.split(/\r?\n/).map(line => line.trim()).filter(Boolean);
-    
-    if (lines.length < 2) {
+    // Parse & validasi = SoalCore (sumber tunggal, sadar-kutip, kunci_isian string).
+    const res = window.SoalCore.parseCSV(e.target.result);
+    if (res.empty) {
       toast('Berkas CSV kosong atau tidak memiliki baris data!', 'err');
       return;
     }
-    
-    // Pemecah CSV yg sadar tanda kutip (dipakai bersama import murid) — jadi ';'
-    // di dalam field ber-kutip tak lagi menggeser kolom. Fallback ke split biasa
-    // hanya bila helper bersama belum termuat.
-    const splitCSV = (typeof window !== 'undefined' && window._splitCSVRow)
-      ? function(line){ return window._splitCSVRow(line, ';'); }
-      : function(line){ return line.split(';'); };
-
-    // Parse header to check correctness
-    const header = splitCSV(lines[0].toLowerCase());
-    const expected = ['tipe_soal','teks_soal','teks_arab','audio_url','pilihan','pasangan','kunci_isian','levels','rekomendasi_pertemuan_ke'];
-    const isHeaderValid = expected.every(col => header.includes(col));
-    
-    if (!isHeaderValid) {
+    if (res.headerError) {
       toast('Header CSV tidak cocok dengan template! Gunakan separator titik koma (;)', 'err');
       return;
     }
 
-    const colIndex = {};
-    header.forEach((name, idx) => { colIndex[name] = idx; });
+    _parsedImportSoal = res.items;
+    const validCount = res.validCount;
 
-    _parsedImportSoal = [];
-    let validCount = 0;
-
+    // Render preview dari item hasil SoalCore (markup identik dgn sebelumnya).
     const tbody = document.getElementById('importPreviewTbodySoal');
-    tbody.innerHTML = '';
-
-    for (let i = 1; i < lines.length; i++) {
-      const row = splitCSV(lines[i]);
-      if (row.length < expected.length) continue;
-
-      const getValue = (colName) => (row[colIndex[colName]] || '').trim();
-
-      const tipe = getValue('tipe_soal').toLowerCase();
-      const teks_soal = getValue('teks_soal');
-      const teks_arab = getValue('teks_arab') || null;
-      const audio_url = getValue('audio_url') || null;
-      const pilihanRaw = getValue('pilihan');
-      const pasanganRaw = getValue('pasangan');
-      const kunciRaw = getValue('kunci_isian');
-      const levelsRaw = getValue('levels');
-      const rekRaw = getValue('rekomendasi_pertemuan_ke');
-      const durRaw = header.includes('durasi_detik_default') ? getValue('durasi_detik_default') : '';
-      const poinRaw = header.includes('bobot_poin_default') ? getValue('bobot_poin_default') : '';
-
-      const item = {
-        tipe_soal: tipe,
-        teks_soal: teks_soal,
-        teks_arab: teks_arab,
-        audio_url: audio_url,
-        pilihan: [],
-        pasangan: [],
-        kunci_isian: [],
-        levels: [],
-        rekomendasi_pertemuan_ke: null,
-        durasi_detik_default: null,
-        bobot_poin_default: 10,
-        error: ''
-      };
-
-      // Validasi Tipe Soal
-      const tipeValid = ['pilihan_ganda', 'benar_salah', 'matching', 'audio', 'teks_arab', 'isian_singkat'].includes(tipe);
-      if (!tipe) {
-        item.error = 'Tipe soal kosong';
-      } else if (!tipeValid) {
-        item.error = `Tipe '${tipe}' tidak valid`;
-      }
-
-      // Validasi Teks Soal
-      if (!teks_soal && !item.error) {
-        item.error = 'Teks soal wajib diisi';
-      }
-
-      // Parse & Validasi Pilihan
-      if (['pilihan_ganda', 'benar_salah', 'audio', 'teks_arab'].includes(tipe) && !item.error) {
-        if (!pilihanRaw) {
-          item.error = 'Kolom pilihan wajib diisi untuk tipe ini';
-        } else {
-          const pils = pilihanRaw.split('|').map(p => p.trim()).filter(Boolean);
-          if (pils.length < 2) {
-            item.error = 'Minimal harus ada 2 pilihan jawaban';
-          } else {
-            let correctCount = 0;
-            pils.forEach((p, idx) => {
-              const isCorrect = p.endsWith('*');
-              const cleanText = isCorrect ? p.slice(0, -1).trim() : p;
-              if (isCorrect) correctCount++;
-              item.pilihan.push({
-                teks_pilihan: cleanText,
-                is_benar: isCorrect,
-                urutan: idx + 1
-              });
-            });
-            if (correctCount === 0) {
-              item.error = 'Tidak ada pilihan jawaban benar (akhiri dengan *)';
-            } else if (correctCount > 1) {
-              item.error = 'Ada lebih dari 1 pilihan jawaban benar';
-            }
-          }
-        }
-      }
-
-      // Parse & Validasi Pasangan (Matching)
-      if (tipe === 'matching' && !item.error) {
-        if (!pasanganRaw) {
-          item.error = 'Kolom pasangan wajib diisi untuk tipe matching';
-        } else {
-          const pairs = pasanganRaw.split('|').map(p => p.trim()).filter(Boolean);
-          if (pairs.length < 2) {
-            item.error = 'Minimal harus ada 2 pasangan menjodohkan';
-          } else {
-            pairs.forEach((p, idx) => {
-              const parts = p.split(':');
-              if (parts.length !== 2) {
-                item.error = 'Format pasangan salah (Gunakan Kiri:Kanan)';
-              } else {
-                item.pasangan.push({
-                  teks_kiri: parts[0].trim(),
-                  teks_kanan: parts[1].trim(),
-                  urutan: idx + 1
-                });
-              }
-            });
-          }
-        }
-      }
-
-      // Parse & Validasi Kunci Isian (Short Answer)
-      if (tipe === 'isian_singkat' && !item.error) {
-        if (!kunciRaw) {
-          item.error = 'Kunci isian wajib diisi untuk isian singkat';
-        } else {
-          const kuncis = kunciRaw.split(/[|,]/).map(k => k.trim()).filter(Boolean);
-          if (kuncis.length === 0) {
-            item.error = 'Kunci isian kosong';
-          } else {
-            // Backend createSoal memetakan tiap elemen lewat String(k).trim(),
-            // jadi kirim string mentah (bukan {teks_kunci}) spy tak jadi
-            // "[object Object]". Samakan dgn jalur editor manual.
-            kuncis.forEach(k => {
-              item.kunci_isian.push(k);
-            });
-          }
-        }
-      }
-
-      // Parse Levels
-      if (levelsRaw) {
-        item.levels = levelsRaw.split(',').map(l => l.trim()).filter(Boolean);
-      }
-
-      // Parse Rekomendasi Pertemuan
-      if (rekRaw) {
-        const num = parseInt(rekRaw);
-        if (!isNaN(num) && num > 0) {
-          item.rekomendasi_pertemuan_ke = num;
-        }
-      }
-
-      // Parse Durasi Default
-      if (durRaw) {
-        const num = parseInt(durRaw);
-        if (!isNaN(num) && num >= 0) {
-          item.durasi_detik_default = num;
-        }
-      }
-
-      // Parse Poin Default
-      if (poinRaw) {
-        const num = parseInt(poinRaw);
-        if (!isNaN(num) && num >= 0) {
-          item.bobot_poin_default = num;
-        }
-      }
-
-      if (!item.error) validCount++;
-
-      _parsedImportSoal.push(item);
-
-      // Render preview row
-      const statusHtml = item.error 
+    tbody.innerHTML = res.items.map(function(item) {
+      const statusHtml = item.error
         ? `<span style="color:var(--red);font-weight:700;display:inline-flex;align-items:center;gap:4px">${svgIcon('err',12)}${esc(item.error)}</span>`
         : `<span style="color:var(--green);font-weight:700;display:inline-flex;align-items:center;gap:4px">${svgIcon('ok',12)}Valid</span>`;
-      
-      const badgeTipe = getTipeSoalLabelAdmin(tipe);
-      
-      tbody.insertAdjacentHTML('beforeend', `
+      return `
         <tr>
-          <td><span class="badge b-blue" style="font-size:9px">${esc(badgeTipe)}</span></td>
-          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(teks_soal)}">${esc(teks_soal)}</td>
+          <td><span class="badge b-blue" style="font-size:9px">${esc(getTipeSoalLabelAdmin(item.tipe_soal))}</span></td>
+          <td style="max-width:240px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(item.teks_soal)}">${esc(item.teks_soal)}</td>
           <td>${(item.levels || []).map(l => `<span class="badge b-green" style="font-size:9px">${esc(l)}</span>`).join(' ') || '–'}</td>
           <td class="align-center">${item.rekomendasi_pertemuan_ke || '–'}</td>
           <td>${statusHtml}</td>
         </tr>
-      `);
-    }
+      `;
+    }).join('');
 
     document.getElementById('previewCountSoal').textContent = _parsedImportSoal.length;
     document.getElementById('importPreviewBoxSoal').style.display = 'block';
