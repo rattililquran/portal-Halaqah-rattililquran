@@ -1326,7 +1326,7 @@
       }).filter(Boolean);
     } else if (tipe === 'isian_singkat') {
       var rawKunci = document.getElementById('csIsianKunci').value;
-      payload.kunci_isian = rawKunci.split(',').map(function(k){ return k.trim(); }).filter(Boolean);
+      payload.kunci_isian = rawKunci.split(/[|,]/).map(function(k){ return k.trim(); }).filter(Boolean);
     }
 
     try {
@@ -1918,7 +1918,23 @@
         return;
       }
 
-      var header = lines[0].toLowerCase().split(';');
+      // Pemecah CSV sadar-kutip (lokal — portal guru tak memuat window._splitCSVRow).
+      // ';' di dalam field ber-kutip tak lagi menggeser kolom; "" → satu " literal.
+      var splitCSV = function(rowStr) {
+        var out = [], cur = '', inQ = false;
+        for (var _i = 0; _i < rowStr.length; _i++) {
+          var _c = rowStr[_i];
+          if (_c === '"') {
+            if (inQ && rowStr[_i + 1] === '"') { cur += '"'; _i++; }
+            else { inQ = !inQ; }
+          } else if (_c === ';' && !inQ) { out.push(cur.trim()); cur = ''; }
+          else { cur += _c; }
+        }
+        out.push(cur.trim());
+        return out;
+      };
+
+      var header = splitCSV(lines[0].toLowerCase());
       var expected = ['tipe_soal','teks_soal','teks_arab','audio_url','pilihan','pasangan','kunci_isian','levels','rekomendasi_pertemuan_ke'];
       var isHeaderValid = expected.every(function(col) { return header.indexOf(col) !== -1; });
       
@@ -1937,7 +1953,7 @@
       tbody.innerHTML = '';
 
       for (var i = 1; i < lines.length; i++) {
-        var row = lines[i].split(';');
+        var row = splitCSV(lines[i]);
         if (row.length < expected.length) continue;
 
         var getValue = function(colName) {
@@ -2038,12 +2054,14 @@
           if (!kunciRaw) {
             item.error = 'Kunci isian wajib diisi untuk isian singkat';
           } else {
-            var kuncis = kunciRaw.split('|').map(function(k) { return k.trim(); }).filter(Boolean);
+            var kuncis = kunciRaw.split(/[|,]/).map(function(k) { return k.trim(); }).filter(Boolean);
             if (kuncis.length === 0) {
               item.error = 'Kunci isian kosong';
             } else {
+              // Backend createSoal memetakan tiap elemen via String(k).trim() → kirim
+              // string mentah (bukan {teks_kunci}) agar tak jadi "[object Object]".
               kuncis.forEach(function(k) {
-                item.kunci_isian.push({ teks_kunci: k });
+                item.kunci_isian.push(k);
               });
             }
           }
