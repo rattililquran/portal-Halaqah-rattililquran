@@ -1,5 +1,6 @@
 {
   "scripts": {
+    "test": "node tests/run.js",
     "version:assets": "node tools/version-assets.js",
     "version:check": "node tools/version-assets.js --check"
   },
