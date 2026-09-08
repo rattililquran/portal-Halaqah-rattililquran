@@ -756,7 +756,7 @@ html.theme-dark .form-title { color: #f0f0f0 !important; }
         <div class="field-wrap">
           <span class="field-ico">🪪</span>
           <input class="field-input" type="text" id="inputNis"
-            placeholder="Contoh: RTL2418000001"
+            placeholder="Masukkan NIS / ID Anda"
             autocomplete="username" maxlength="30">
         </div>
         <div class="field-hint" id="nisHint" style="text-align:left;color:#94a3b8;font-size:11px;margin-top:6px">NIS diberikan pengajar Anda.</div>
@@ -799,7 +799,7 @@ html.theme-dark .form-title { color: #f0f0f0 !important; }
     </div>
     <div class="modal-lupa-field">
       <label id="lupaIdLabel">NIS / ID Pengguna</label>
-      <input type="text" id="lupaId" placeholder="Contoh: USR-ADMIN-001" style="text-transform:uppercase">
+      <input type="text" id="lupaId" placeholder="Masukkan NIS / ID Anda" style="text-transform:uppercase">
     </div>
     <div class="modal-lupa-note" id="lupaNoteRole" style="line-height:1.5">Reset password dilakukan manual oleh Admin demi keamanan akun Anda. Permintaan reset akan diteruskan melalui WhatsApp untuk verifikasi identitas Anda.</div>
     <button class="btn-wa" onclick="kirimLupaPassword()">
@@ -851,11 +851,11 @@ html.theme-dark .form-title { color: #f0f0f0 !important; }
 let currentRole = 'murid';
 
 const ROLE_META = {
-  admin:      { title:'Masuk sebagai Admin',  sub:'Kelola halaqah dan data Murid',     placeholder:'Contoh: USR-ADMIN-001', redirect:'admin/index.html', hint:'ID admin diberikan oleh pengelola sistem.' },
-  superadmin: { title:'Masuk sebagai Admin',  sub:'Kelola halaqah dan data Murid',     placeholder:'Contoh: USR-ADMIN-001', redirect:'admin/index.html', hint:'ID admin diberikan oleh pengelola sistem.' },
-  guru:       { title:'Masuk sebagai Guru',   sub:'Kelola sesi KBM dan penilaian murid',placeholder:'Contoh: GRU-001',        redirect:'guru/index.html',  hint:'ID Guru diberikan oleh admin.' },
-  murid:      { title:'Masuk sebagai Murid',  sub:'Lihat progress dan riwayat belajar', placeholder:'Contoh: RTL2418000001',  redirect:'murid/index.html', hint:'NIS diberikan pengajar Anda.' },
-  ketua:      { title:'Masuk sebagai Murid',  sub:'Lihat progress dan riwayat belajar', placeholder:'Contoh: RTL2418000001',  redirect:'murid/index.html', hint:'NIS diberikan pengajar Anda.' },
+  admin:      { title:'Masuk sebagai Admin',  sub:'Kelola halaqah dan data Murid',     placeholder:'Masukkan ID Admin', redirect:'admin/index.html', hint:'ID admin diberikan oleh pengelola sistem.' },
+  superadmin: { title:'Masuk sebagai Admin',  sub:'Kelola halaqah dan data Murid',     placeholder:'Masukkan ID Admin', redirect:'admin/index.html', hint:'ID admin diberikan oleh pengelola sistem.' },
+  guru:       { title:'Masuk sebagai Guru',   sub:'Kelola sesi KBM dan penilaian murid',placeholder:'Masukkan ID Guru',        redirect:'guru/index.html',  hint:'ID Guru diberikan oleh admin.' },
+  murid:      { title:'Masuk sebagai Murid',  sub:'Lihat progress dan riwayat belajar', placeholder:'Masukkan NIS Anda',  redirect:'murid/index.html', hint:'NIS diberikan pengajar Anda.' },
+  ketua:      { title:'Masuk sebagai Murid',  sub:'Lihat progress dan riwayat belajar', placeholder:'Masukkan NIS Anda',  redirect:'murid/index.html', hint:'NIS diberikan pengajar Anda.' },
 };
 
 function setRole(role) {
